@@ -1,0 +1,9 @@
+Log dir:  ./runs/run_pipnet
+CUDA device set without id specification
+Device used:  cuda with id [0]
+Weights for weighted sampler:  tensor([0.0015, 0.0003])
+Num classes (k) =  2 ['Fractured', 'Non_fractured'] etc.
+Classes:  ['Fractured', 'Non_fractured']
+Number of prototypes:  768
+chosen network is convnext
+Classification layer initialized with mean 0.9977363348007202
