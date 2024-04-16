@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 import torch.utils.data
 import os
-from PIL import ImageFile, ImageDraw as D
+from PIL import ImageFile, Image, ImageDraw as D
 import torchvision.transforms as transforms
 import torchvision
 from util.func import get_patch_size
@@ -127,14 +127,15 @@ def visualize_topk(net, projectloader, num_classes, device, foldername, args: ar
                                 img_to_open = imgs[i]
                                 if isinstance(img_to_open, tuple) or isinstance(img_to_open, list): #dataset contains tuples of (img,label)
                                     img_to_open = img_to_open[0]
-                                
-                                image = transforms.Resize(size=(args.image_size, args.image_size))(ImageFile.open(img_to_open))
-                                img_tensor = transforms.ToTensor()(image).unsqueeze_(0) #shape (1, 3, h, w)
-                                h_coor_min, h_coor_max, w_coor_min, w_coor_max = get_img_coordinates(args.image_size, softmaxes.shape, patchsize, skip, h_idx, w_idx)
-                                img_tensor_patch = img_tensor[0, :, h_coor_min:h_coor_max, w_coor_min:w_coor_max]
-                                        
-                                saved[p]+=1
-                                tensors_per_prototype[p].append(img_tensor_patch)
+                                with ImageFile.open(img_to_open) as img:
+
+                                    image = transforms.Resize(size=(args.image_size, args.image_size))(img)
+                                    img_tensor = transforms.ToTensor()(image).unsqueeze_(0) #shape (1, 3, h, w)
+                                    h_coor_min, h_coor_max, w_coor_min, w_coor_max = get_img_coordinates(args.image_size, softmaxes.shape, patchsize, skip, h_idx, w_idx)
+                                    img_tensor_patch = img_tensor[0, :, h_coor_min:h_coor_max, w_coor_min:w_coor_max]
+                                            
+                                    saved[p]+=1
+                                    tensors_per_prototype[p].append(img_tensor_patch)
 
     print("Abstained: ", abstained, flush=True)
     all_tensors = []
@@ -142,7 +143,7 @@ def visualize_topk(net, projectloader, num_classes, device, foldername, args: ar
         if saved[p]>0:
             # add text next to each topk-grid, to easily see which prototype it is
             text = "P "+str(p)
-            txtimage = ImageFile.new("RGB", (img_tensor_patch.shape[1],img_tensor_patch.shape[2]), (0, 0, 0))
+            txtimage = Image.new("RGB", (img_tensor_patch.shape[1],img_tensor_patch.shape[2]), (0, 0, 0))
             draw = D.Draw(txtimage)
             draw.text((img_tensor_patch.shape[0]//2, img_tensor_patch.shape[1]//2), text, anchor='mm', fill="white")
             txttensor = transforms.ToTensor()(txtimage)
@@ -246,20 +247,21 @@ def visualize(net, projectloader, num_classes, device, foldername, args: argpars
                     if isinstance(img_to_open, tuple) or isinstance(img_to_open, list): #dataset contains tuples of (img,label)
                         imglabel = img_to_open[1]
                         img_to_open = img_to_open[0]
+                    with ImageFile.open(img_to_open) as img:
 
-                    image = transforms.Resize(size=(args.image_size, args.image_size))(ImageFile.open(img_to_open).convert("RGB"))
-                    img_tensor = transforms.ToTensor()(image).unsqueeze_(0) #shape (1, 3, h, w)
-                    h_coor_min, h_coor_max, w_coor_min, w_coor_max = get_img_coordinates(args.image_size, softmaxes.shape, patchsize, skip, h_idx, w_idx)
-                    img_tensor_patch = img_tensor[0, :, h_coor_min:h_coor_max, w_coor_min:w_coor_max]
-                    saved[p]+=1
-                    tensors_per_prototype[p].append((img_tensor_patch, found_max))
-                    
-                    save_path = os.path.join(dir, "prototype_%s")%str(p)
-                    if not os.path.exists(save_path):
-                        os.makedirs(save_path)
-                    draw = D.Draw(image)
-                    draw.rectangle([(w_coor_min,h_coor_min), (w_coor_max, h_coor_max)], outline='yellow', width=2)
-                    image.save(os.path.join(save_path, 'p%s_%s_%s_%s_rect.png'%(str(p),str(imglabel),str(round(found_max, 2)),str(img_to_open.split('/')[-1].split('.jpg')[0]))))
+                        image = transforms.Resize(size=(args.image_size, args.image_size))(img.convert("RGB"))
+                        img_tensor = transforms.ToTensor()(image).unsqueeze_(0) #shape (1, 3, h, w)
+                        h_coor_min, h_coor_max, w_coor_min, w_coor_max = get_img_coordinates(args.image_size, softmaxes.shape, patchsize, skip, h_idx, w_idx)
+                        img_tensor_patch = img_tensor[0, :, h_coor_min:h_coor_max, w_coor_min:w_coor_max]
+                        saved[p]+=1
+                        tensors_per_prototype[p].append((img_tensor_patch, found_max))
+                        
+                        save_path = os.path.join(dir, "prototype_%s")%str(p)
+                        if not os.path.exists(save_path):
+                            os.makedirs(save_path)
+                        draw = D.Draw(image)
+                        draw.rectangle([(w_coor_min,h_coor_min), (w_coor_max, h_coor_max)], outline='yellow', width=2)
+                        image.save(os.path.join(save_path, 'p%s_%s_%s_%s_rect.png'%(str(p),str(imglabel),str(round(found_max, 2)),str(img_to_open.split('/')[-1].split('.jpg')[0]))))
                     
         
         images_seen_before+=len(ys)
